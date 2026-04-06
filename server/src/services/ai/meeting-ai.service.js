@@ -37,12 +37,14 @@ const STOP_WORDS = new Set([
 
 const DECISION_PATTERNS = [
   /\b(decided|decision|agreed|approved|finalized|locked in|we will go with)\b/i,
-  /\b(let'?s proceed with|moving forward with|sign off on)\b/i
+  /\b(let'?s proceed with|moving forward with|sign off on)\b/i,
+  /\b(final decision|we will|we'll|let'?s do|let'?s ship|chosen approach)\b/i
 ];
 
 const ACTION_PATTERNS = [
   /\b(action item|follow up|need to|needs to|please|owner|deadline|next step)\b/i,
-  /\b(i will|we will|you will|can you|should have|must)\b/i
+  /\b(i will|we will|you will|can you|should have|must|will|should|by)\b/i,
+  /\b(assign|assigned|take this|handle this|send|prepare|share|deliver|update|review)\b/i
 ];
 
 const DEADLINE_PATTERNS = [
@@ -53,8 +55,14 @@ const DEADLINE_PATTERNS = [
 
 const POSITIVE_TERMS = ["good", "great", "done", "approved", "aligned", "resolved"];
 const NEGATIVE_TERMS = ["blocked", "risk", "issue", "delay", "problem", "concern"];
+const PERSON_TASK_PATTERN =
+  /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:will|should|needs to|must|can)\s+(.+)/;
+const IMPLIED_OWNER_PATTERN =
+  /\b(i|we|you)\s+(?:will|should|need to|must|can)\s+(.+)/i;
 
 const normalizeToken = (token) => token.toLowerCase().replace(/[^a-z0-9]/g, "");
+const normalizeWhitespace = (text) => String(text || "").replace(/\s+/g, " ").trim();
+const cleanSentence = (text) => normalizeWhitespace(String(text || "").replace(/^[\-\*\d.\s]+/, ""));
 
 const extractKeywords = (text, maxKeywords = 6) => {
   const counts = new Map();
@@ -79,6 +87,16 @@ const buildCitation = (utterance) => ({
   endTimeMs: utterance.endTimeMs,
   speaker: utterance.speaker,
   snippet: utterance.text.slice(0, 240)
+});
+
+const buildActionItem = (utterance, overrides = {}) => ({
+  owner:
+    overrides.owner ??
+    (utterance.speaker && utterance.speaker !== "Unknown" ? utterance.speaker : ""),
+  task: cleanSentence(overrides.task ?? utterance.text),
+  deadline: overrides.deadline ?? inferDeadline(utterance.text),
+  citations: [buildCitation(utterance)],
+  status: "open"
 });
 
 const inferSentimentScore = (text) => {
@@ -111,7 +129,7 @@ const sentenceScore = (utterance) => {
 };
 
 const buildSummary = (utterances) => {
-  return utterances
+  const rankedSentences = utterances
     .map((utterance) => ({ utterance, score: sentenceScore(utterance) }))
     .sort((left, right) => right.score - left.score)
     .slice(0, 5)
@@ -120,19 +138,70 @@ const buildSummary = (utterances) => {
         Number(left.utterance.startTimeMs ?? Number.MAX_SAFE_INTEGER) -
         Number(right.utterance.startTimeMs ?? Number.MAX_SAFE_INTEGER)
     )
-    .map(({ utterance }) => utterance.text)
+    .map(({ utterance }) => cleanSentence(utterance.text))
+    .filter(Boolean);
+
+  const leadSentences = getTranscriptSentences(utterances).slice(0, 2);
+  const decisionSentences = buildDecisions(utterances)
+    .slice(0, 2)
+    .map((decision) => cleanSentence(decision.text));
+
+  return [...new Set([...leadSentences, ...rankedSentences, ...decisionSentences])]
+    .filter(Boolean)
     .join(" ")
     .slice(0, 900);
 };
 
+const getTranscriptSentences = (utterances) =>
+  utterances
+    .flatMap((utterance) =>
+      String(utterance.text || "")
+        .split(/(?<=[.!?])\s+/)
+        .map((sentence) => sentence.trim())
+        .filter(Boolean)
+    );
+
+const buildFallbackSummary = (utterances) =>
+  getTranscriptSentences(utterances)
+    .slice(0, 2)
+    .join(" ")
+    .slice(0, 900);
+
 const buildDecisions = (utterances) => {
-  return utterances
+  const matchedDecisions = utterances
     .filter((utterance) => DECISION_PATTERNS.some((pattern) => pattern.test(utterance.text)))
     .slice(0, 10)
     .map((utterance) => ({
       text: utterance.text,
       citations: [buildCitation(utterance)]
     }));
+
+  if (matchedDecisions.length) {
+    return matchedDecisions;
+  }
+
+  const fallbackDecisions = utterances
+    .filter((utterance) => ACTION_PATTERNS.some((pattern) => pattern.test(utterance.text)))
+    .slice(0, 2)
+    .map((utterance) => ({
+      text: utterance.text,
+      citations: [buildCitation(utterance)]
+    }));
+
+  if (fallbackDecisions.length) {
+    return fallbackDecisions;
+  }
+
+  const firstMeaningfulUtterance = utterances.find((utterance) => cleanSentence(utterance.text));
+
+  return firstMeaningfulUtterance
+    ? [
+        {
+          text: `Team direction captured: ${cleanSentence(firstMeaningfulUtterance.text)}`,
+          citations: [buildCitation(firstMeaningfulUtterance)]
+        }
+      ]
+    : [];
 };
 
 const inferDeadline = (text) => {
@@ -147,16 +216,52 @@ const inferDeadline = (text) => {
 };
 
 const buildActionItems = (utterances) => {
-  return utterances
+  const matchedActions = utterances
     .filter((utterance) => ACTION_PATTERNS.some((pattern) => pattern.test(utterance.text)))
     .slice(0, 15)
-    .map((utterance) => ({
-      owner: utterance.speaker && utterance.speaker !== "Unknown" ? utterance.speaker : "",
-      task: utterance.text,
-      deadline: inferDeadline(utterance.text),
-      citations: [buildCitation(utterance)],
-      status: "open"
-    }));
+    .map((utterance) => {
+      const explicitPersonMatch = utterance.text.match(PERSON_TASK_PATTERN);
+
+      if (explicitPersonMatch) {
+        return buildActionItem(utterance, {
+          owner: explicitPersonMatch[1],
+          task: explicitPersonMatch[2]
+        });
+      }
+
+      const impliedOwnerMatch = utterance.text.match(IMPLIED_OWNER_PATTERN);
+
+      if (impliedOwnerMatch) {
+        const pronoun = impliedOwnerMatch[1].toLowerCase();
+        const owner =
+          pronoun === "i"
+            ? utterance.speaker || ""
+            : pronoun === "we"
+              ? "Team"
+              : "You";
+
+        return buildActionItem(utterance, {
+          owner,
+          task: impliedOwnerMatch[2]
+        });
+      }
+
+      return buildActionItem(utterance);
+    });
+
+  if (matchedActions.length) {
+    return matchedActions;
+  }
+
+  const fallbackActionSource = utterances.find((utterance) => utterance.text?.trim());
+
+  return fallbackActionSource
+    ? [
+        buildActionItem(fallbackActionSource, {
+          task: `Follow up on: ${cleanSentence(fallbackActionSource.text)}`
+        })
+      ]
+    : [];
 };
 
 const buildSentimentTimeline = (utterances) => {
@@ -228,7 +333,7 @@ export const meetingAiService = {
 
   async processMeeting(meeting) {
     const utterances = meeting.utterances || [];
-    const summary = buildSummary(utterances);
+    const summary = buildSummary(utterances) || buildFallbackSummary(utterances);
     const decisions = buildDecisions(utterances);
     const actionItems = buildActionItems(utterances);
     const sentimentTimeline = buildSentimentTimeline(utterances);

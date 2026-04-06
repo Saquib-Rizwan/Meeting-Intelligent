@@ -43,3 +43,15 @@ export const getMeetingById = async (req, res, next) => {
     next(error);
   }
 };
+
+export const exportMeeting = async (req, res, next) => {
+  try {
+    const exportFile = await meetingService.exportMeeting(req.params.meetingId);
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${exportFile.fileName}"`);
+    res.send(exportFile.content);
+  } catch (error) {
+    next(error);
+  }
+};

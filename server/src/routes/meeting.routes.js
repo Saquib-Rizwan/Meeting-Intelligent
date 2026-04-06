@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   createMeeting,
+  exportMeeting,
   getMeetingById,
   listMeetings
 } from "../controllers/meeting.controller.js";
@@ -16,6 +17,7 @@ const router = Router();
 router.get("/", listMeetings);
 router.post("/", createMeeting);
 router.post("/upload", uploadTranscriptFiles, uploadMeetingFiles);
+router.get("/:meetingId/export", exportMeeting);
 router.get("/:meetingId", getMeetingById);
 router.post("/:meetingId/process", processMeetingTranscript);
 
