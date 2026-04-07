@@ -1,0 +1,15 @@
+<svg width="960" height="540" viewBox="0 0 960 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="540" rx="24" fill="#F8FAFC"/>
+  <rect x="32" y="32" width="896" height="82" rx="20" fill="#FFFFFF"/>
+  <rect x="32" y="138" width="896" height="98" rx="20" fill="#FFFFFF"/>
+  <rect x="32" y="260" width="430" height="118" rx="20" fill="#FFFFFF"/>
+  <rect x="486" y="260" width="442" height="118" rx="20" fill="#FFFFFF"/>
+  <rect x="32" y="402" width="430" height="106" rx="20" fill="#FFFFFF"/>
+  <rect x="486" y="402" width="442" height="106" rx="20" fill="#FFFFFF"/>
+  <text x="72" y="82" font-size="24" font-family="Segoe UI, sans-serif" fill="#0F172A">Meeting Detail Preview</text>
+  <text x="72" y="188" font-size="20" font-family="Segoe UI, sans-serif" fill="#0F172A">Summary Card + Key Metrics</text>
+  <text x="72" y="310" font-size="18" font-family="Segoe UI, sans-serif" fill="#0F172A">Decisions + Action Items</text>
+  <text x="526" y="310" font-size="18" font-family="Segoe UI, sans-serif" fill="#0F172A">Sentiment Visualization</text>
+  <text x="72" y="450" font-size="18" font-family="Segoe UI, sans-serif" fill="#0F172A">Evidence-backed Chat</text>
+  <text x="526" y="450" font-size="18" font-family="Segoe UI, sans-serif" fill="#0F172A">Source Segments</text>
+</svg>

@@ -1,16 +1,14 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { queryChat } from "../lib/api.js";
+import { formatSpeakerLabel, formatTimeRange } from "../lib/display.js";
 import SectionCard from "./SectionCard.jsx";
-import { useEffect, useRef, useState } from "react";
 
-const formatTimestamp = (startTimeMs, endTimeMs) => {
-  if (startTimeMs == null && endTimeMs == null) {
-    return "No timestamp";
-  }
-
-  return `${startTimeMs ?? 0}ms - ${endTimeMs ?? startTimeMs ?? 0}ms`;
-};
+const QUICK_PROMPTS = [
+  "What decisions were actually made?",
+  "Who owns the next step?",
+  "Why was the launch delayed?"
+];
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -21,31 +19,27 @@ const normalizeToken = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const parseStructuredAnswer = (answer) => {
-  const content = String(answer || "");
-  const summaryMatch = content.match(/Summary:\s*([\s\S]*?)(?=\n\nCoverage:|\n\nKey Points:|$)/i);
-  const coverageMatch = content.match(/Coverage:\s*([\s\S]*?)(?=\n\nKey Points:|$)/i);
-  const keyPointsMatch = content.match(/Key Points:\s*([\s\S]*?)(?=\n\nSupporting Evidence:|$)/i);
-  const evidenceMatch = content.match(/Supporting Evidence:\s*([\s\S]*)$/i);
+const parseAnswerBlocks = (answer) =>
+  String(answer || "")
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      if (/^[-*]\s/m.test(block)) {
+        return {
+          type: "list",
+          items: block
+            .split("\n")
+            .map((line) => line.replace(/^[-*]\s*/, "").trim())
+            .filter(Boolean)
+        };
+      }
 
-  const summary = (summaryMatch?.[1] || content).trim();
-  const coverage = (coverageMatch?.[1] || "").trim();
-  const keyPoints = (keyPointsMatch?.[1] || "")
-    .split("\n")
-    .map((line) => line.replace(/^[-*]\s*/, "").trim())
-    .filter(Boolean);
-  const supportingEvidence = (evidenceMatch?.[1] || "")
-    .split("\n")
-    .map((line) => line.replace(/^[-*]\s*/, "").trim())
-    .filter(Boolean);
-
-  return {
-    summary,
-    coverage,
-    keyPoints,
-    supportingEvidence
-  };
-};
+      return {
+        type: "paragraph",
+        text: block
+      };
+    });
 
 const highlightText = (text, keywords) => {
   const activeKeywords = [...new Set((keywords || []).map(normalizeToken).filter(Boolean))];
@@ -72,57 +66,164 @@ const highlightText = (text, keywords) => {
   });
 };
 
-const DetailBlock = ({ label, children, dark = false }) => {
-  return (
-    <div className={`rounded-xl border px-4 py-4 ${dark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}>
-      <p className={`mb-2 text-[0.6875rem] font-bold uppercase tracking-[0.16em] ${dark ? "text-slate-300" : "text-slate-500"}`}>
-        {label}
-      </p>
-      {children}
-    </div>
+const renderPlainText = (text) => <span className="break-words">{text}</span>;
+
+const createFallbackAssistantResult = (message) => ({
+  answer:
+    message ||
+    "I could not find a confident answer in the transcript. Try asking a narrower question or selecting a specific meeting.",
+  confidenceScore: 0,
+  fallbackUsed: true,
+  meetingCount: 0,
+  chunkCount: 0,
+  sources: [
+    {
+      chunkText: "No relevant discussion found.",
+      speaker: "Meeting Assistant",
+      matchedKeywords: []
+    }
+  ]
+});
+
+const formatMessageTime = (value) =>
+  new Date(value).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+
+const AssistantMessage = ({ result, createdAt }) => {
+  const [showSources, setShowSources] = useState(false);
+  const answerBlocks = useMemo(() => parseAnswerBlocks(result?.answer), [result?.answer]);
+  const highlightKeywords = useMemo(
+    () => [...new Set((result?.sources || []).flatMap((source) => source.matchedKeywords || []))],
+    [result?.sources]
   );
-};
-
-const ChatSection = ({
-  initialMeetingId = "",
-  title = "Chat",
-  description = "Ask a question against one meeting or across all processed meetings.",
-  compact = false
-}) => {
-  const [question, setQuestion] = useState("");
-  const [meetingId, setMeetingId] = useState(initialMeetingId);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
-  const responseRef = useRef(null);
-
-  useEffect(() => {
-    setMeetingId(initialMeetingId || "");
-  }, [initialMeetingId]);
-
-  useEffect(() => {
-    if (result && responseRef.current) {
-      responseRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [result]);
-
-  const parsedAnswer = useMemo(() => parseStructuredAnswer(result?.answer), [result?.answer]);
-
-  const highlightKeywords = useMemo(() => {
-    if (!result?.sources?.length) {
-      return [];
-    }
-
-    return [...new Set(result.sources.flatMap((source) => source.matchedKeywords || []))];
-  }, [result]);
-
   const meetingCount = useMemo(() => {
     if (!result?.sources?.length) {
       return 0;
     }
 
     return new Set(result.sources.map((source) => source.meetingId).filter(Boolean)).size;
-  }, [result]);
+  }, [result?.sources]);
+
+  return (
+    <div className="w-full max-w-[94%]">
+      <div className="rounded-[22px] rounded-tl-md border border-[#d9e3dc] bg-white px-4 py-3 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="text-xs font-semibold text-slate-900">Meeting Assistant</div>
+          <div className="text-[11px] text-slate-500">
+            {Math.round((result.confidenceScore || 0) * 100)}% confidence
+          </div>
+        </div>
+
+        <div className="space-y-3 text-sm leading-6 text-slate-700">
+          {answerBlocks.map((block, index) =>
+            block.type === "list" ? (
+              <div key={`list-${index}`} className="space-y-2 rounded-2xl bg-[#f5f7f4] px-3 py-3">
+                {block.items.map((item, itemIndex) => (
+                  <div key={`${item}-${itemIndex}`} className="flex gap-2">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-emerald-700" />
+                    <span>{renderPlainText(item)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p
+                key={`paragraph-${index}`}
+                className={index === 0 ? "text-[15px] font-medium text-slate-900" : ""}
+              >
+                {renderPlainText(block.text)}
+              </p>
+            )
+          )}
+
+          <p className="text-xs text-slate-500">
+            Based on {result.meetingCount || meetingCount || 0} meetings and{" "}
+            {result.chunkCount || result.sources?.length || 0} transcript segments.
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <button
+            className="inline-flex items-center rounded-full border border-[#d7ddd8] bg-[#f8faf8] px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-emerald-300 hover:text-emerald-900"
+            type="button"
+            onClick={() => setShowSources((current) => !current)}
+          >
+            {showSources ? "Hide sources" : "Show sources"} ({result.chunkCount || result.sources?.length || 0})
+            {result.fallbackUsed ? " | fallback" : ""}
+          </button>
+
+          {showSources ? (
+            <div className="mt-3 space-y-2">
+              {result.sources?.length ? (
+                result.sources.map((source, index) => (
+                  <div
+                    key={`${source.chunkId || index}-${index}`}
+                    className="rounded-2xl border border-[#e2e7e3] bg-[#f8faf8] px-3 py-2.5"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                      <span className="font-semibold text-slate-800">
+                        {formatSpeakerLabel(source.speaker, "Meeting segment")}
+                      </span>
+                      <span>{source.meetingId ? `Meeting ${source.meetingId}` : "Selected meeting"}</span>
+                      <span>{formatTimeRange(source.startTimeMs, source.endTimeMs)}</span>
+                    </div>
+                    {source.matchedKeywords?.length ? (
+                      <div className="mt-2 text-[11px] font-semibold text-amber-800">
+                        Matched: {source.matchedKeywords.join(", ")}
+                      </div>
+                    ) : null}
+                    <div className="mt-1.5 break-words text-sm leading-6 text-slate-700">
+                      {highlightText(source.chunkText, source.matchedKeywords || highlightKeywords)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                  No relevant citations found.
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-2 pl-1 text-[11px] text-slate-400">{formatMessageTime(createdAt)}</div>
+    </div>
+  );
+};
+
+const UserMessage = ({ text, createdAt }) => (
+  <div className="max-w-[85%] rounded-[22px] rounded-br-md bg-emerald-900 px-4 py-3 text-sm leading-6 text-white shadow-sm">
+    <div className="break-words">{text}</div>
+    <div className="mt-1.5 text-right text-[11px] font-medium text-emerald-100/80">
+      {formatMessageTime(createdAt)}
+    </div>
+  </div>
+);
+
+const ChatSection = ({
+  initialMeetingId = "",
+  title = "Chat",
+  description = "Ask natural questions and get a direct answer grounded in this meeting.",
+  compact = false,
+  lockMeetingId = false
+}) => {
+  const [question, setQuestion] = useState("");
+  const [meetingId, setMeetingId] = useState(initialMeetingId);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [messages, setMessages] = useState([]);
+  const threadRef = useRef(null);
+
+  useEffect(() => {
+    setMeetingId(initialMeetingId || "");
+  }, [initialMeetingId]);
+
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -132,196 +233,180 @@ const ChatSection = ({
       return;
     }
 
+    const submittedQuestion = question.trim();
+    setQuestion("");
     setLoading(true);
     setError("");
+    setMessages((current) => [
+      ...current,
+      {
+        id: `user-${Date.now()}`,
+        role: "user",
+        text: submittedQuestion,
+        createdAt: Date.now()
+      }
+    ]);
 
     try {
       const response = await queryChat({
-        question: question.trim(),
+        question: submittedQuestion,
         meetingId: meetingId.trim() || undefined
       });
 
       const normalizedSources = (response.sources || []).length
         ? response.sources
-        : [
-            {
-              chunkText: "No relevant discussion found.",
-              speaker: "System",
-              matchedKeywords: []
-            }
-          ];
+        : createFallbackAssistantResult().sources;
 
-      setResult({
-        ...response,
-        answer:
-          response.answer ||
-          "Summary: No relevant discussion found.\n\nCoverage: Based on 0 meetings and 0 transcript segments.\n\nKey Points:\n- Try a more specific question.\n\nSupporting Evidence:\n- No supporting discussion was returned.",
-        sources: normalizedSources
-      });
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          createdAt: Date.now(),
+          result: {
+            ...response,
+            answer: response.answer || createFallbackAssistantResult().answer,
+            sources: normalizedSources
+          }
+        }
+      ]);
     } catch (requestError) {
       setError(requestError.message);
-      setResult({
-        answer:
-          "Summary: No relevant discussion found.\n\nCoverage: Based on 0 meetings and 0 transcript segments.\n\nKey Points:\n- The assistant could not complete the request.\n\nSupporting Evidence:\n- Try again or choose a specific meeting.",
-        confidenceScore: 0,
-        fallbackUsed: true,
-        sources: [
-          {
-            chunkText: "No relevant discussion found.",
-            speaker: "System",
-            matchedKeywords: []
-          }
-        ]
-      });
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          createdAt: Date.now(),
+          result: createFallbackAssistantResult(
+            "I could not complete that answer reliably. Try again or choose a more specific meeting question."
+          )
+        }
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const cardClass = compact
-    ? "border-none bg-transparent p-0 shadow-none"
-    : "";
+  const cardClass = compact ? "h-full border-none bg-transparent p-0 shadow-none" : "";
 
   return (
     <SectionCard title={title} description={description} className={cardClass}>
-      <form className={compact ? "space-y-3" : "space-y-4"} onSubmit={handleSubmit}>
-        <label className="block text-sm font-medium text-slate-700">
-          Question
-          <textarea
-            className="mt-1 min-h-28 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-300"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Why was the API launch delayed?"
-            disabled={loading}
-          />
-        </label>
-
-        <label className="block text-sm font-medium text-slate-700">
-          Meeting ID
-          <input
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-300"
-            type="text"
-            value={meetingId}
-            onChange={(event) => setMeetingId(event.target.value)}
-            placeholder="Optional: search all meetings if empty"
-            disabled={loading}
-          />
-        </label>
-
-        <button
-          className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
-          type="submit"
-          disabled={loading}
-        >
-          {loading ? "Generating answer..." : "Send Message"}
-        </button>
-      </form>
-
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-
-      {!result && !loading ? (
-        <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
-          Ask about decisions, delays, budgets, owners, or action items from your meetings.
-        </div>
-      ) : null}
-
-      {result ? (
-        <div ref={responseRef} className="mt-5 space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-bold text-white">
-              Confidence: {Math.round((result.confidenceScore || 0) * 100)}%
-            </span>
-            {result.fallbackUsed ? (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800">
-                AI fallback used
-              </span>
-            ) : null}
-            <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-700">
-              Answer generated from meeting discussions
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700">
-              {result.meetingCount || meetingCount || 0} meetings
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700">
-              {result.chunkCount || result.sources?.length || 0} transcript segments
-            </span>
-          </div>
-
-          <div className="rounded-2xl bg-slate-900 px-4 py-4 text-slate-100 shadow-sm">
-            <div className="mb-3 flex flex-wrap gap-4 text-[11px] uppercase tracking-[0.16em] text-slate-300">
-              <span>{result.sources?.length || 0} chunks used</span>
-              <span>{meetingCount || 0} meetings referenced</span>
+      <div className="flex h-full min-h-[70vh] flex-col overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,#fbfcfb_0%,#f2f5f2_100%)]">
+        <div className="border-b border-[#e3e8e4] bg-white/88 px-4 py-3 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-slate-900">Meeting assistant</div>
+              <div className="text-xs text-slate-500">
+                Ask a question and get cited answers.
+              </div>
             </div>
-
-            <div className="space-y-3 text-sm leading-6">
-              <DetailBlock label="Summary" dark>
-                <p>{highlightText(parsedAnswer.summary, highlightKeywords)}</p>
-              </DetailBlock>
-
-              <DetailBlock label="Coverage" dark>
-                <p>{parsedAnswer.coverage || `Answer generated from ${result.meetingCount || meetingCount || 0} meetings and ${result.chunkCount || result.sources?.length || 0} transcript segments.`}</p>
-              </DetailBlock>
-
-              <DetailBlock label="Key Points" dark>
-                {parsedAnswer.keyPoints.length ? (
-                  <ul className="space-y-2 pl-5">
-                    {parsedAnswer.keyPoints.map((point, index) => (
-                      <li key={`${point}-${index}`}>{highlightText(point, highlightKeywords)}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No key points available.</p>
-                )}
-              </DetailBlock>
-
-              <DetailBlock label="Supporting Evidence" dark>
-                {parsedAnswer.supportingEvidence.length ? (
-                  <ul className="space-y-2 pl-5">
-                    {parsedAnswer.supportingEvidence.map((item, index) => (
-                      <li key={`${item}-${index}`}>{highlightText(item, highlightKeywords)}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No supporting evidence available.</p>
-                )}
-              </DetailBlock>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-bold text-slate-900">Source Chunks</p>
-            {result.sources?.length ? (
-              result.sources.map((source, index) => (
-                <div
-                  key={`${source.chunkId || index}-${index}`}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-                >
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-slate-900">
-                      {source.speaker || "Unknown speaker"}
-                    </span>
-                    {source.matchedKeywords?.length ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                        Matched: {source.matchedKeywords.join(", ")}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mb-2 text-xs text-slate-500">
-                    {formatTimestamp(source.startTimeMs, source.endTimeMs)}
-                  </div>
-                  <div className="whitespace-pre-wrap leading-6">
-                    {highlightText(source.chunkText, source.matchedKeywords || highlightKeywords)}
-                  </div>
-                </div>
-              ))
+            {!lockMeetingId ? (
+              <input
+                className="w-36 rounded-xl border border-[#d7ddd8] bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-700"
+                type="text"
+                value={meetingId}
+                onChange={(event) => setMeetingId(event.target.value)}
+                placeholder="Meeting ID or all"
+                disabled={loading}
+              />
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                No relevant discussion found.
+              <div className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
+                This meeting
               </div>
             )}
           </div>
         </div>
-      ) : null}
+
+        <div ref={threadRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          {!messages.length ? (
+            <div className="flex h-full min-h-[320px] items-center justify-center">
+              <div className="max-w-sm rounded-[24px] border border-dashed border-[#d3dbd4] bg-white/85 px-5 py-5 text-center text-sm leading-6 text-slate-500">
+                Ask about decisions, action items, concerns, or reasoning from the transcript.
+                <div className="mt-2 text-slate-400">
+                  Keep it simple and the assistant will return the answer with sources.
+                </div>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      className="rounded-full border border-[#d7ddd8] bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-900"
+                      type="button"
+                      onClick={() => setQuestion(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {messages.map((message) =>
+            message.role === "user" ? (
+              <div key={message.id} className="flex justify-end">
+                <UserMessage text={message.text} createdAt={message.createdAt} />
+              </div>
+            ) : (
+              <div key={message.id} className="flex justify-start">
+                <AssistantMessage result={message.result} createdAt={message.createdAt} />
+              </div>
+            )
+          )}
+
+          {loading ? (
+            <div className="flex justify-start">
+              <div className="rounded-[22px] rounded-tl-md border border-[#d9e3dc] bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                Thinking through the transcript...
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="border-t border-[#e3e8e4] bg-white/92 px-4 py-3">
+          {error ? (
+            <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : null}
+
+          <form className="space-y-2.5" onSubmit={handleSubmit}>
+            <textarea
+              className="min-h-20 max-h-36 w-full resize-y rounded-2xl border border-[#d7ddd8] bg-[#fbfcfb] px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-700"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="Type your question..."
+              disabled={loading}
+            />
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-slate-500">
+                Answers include citations.
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
+                  disabled={loading || !messages.length}
+                  onClick={() => {
+                    setMessages([]);
+                    setError("");
+                  }}
+                >
+                  Clear
+                </button>
+                <button
+                  className="rounded-2xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Sending..." : "Send"}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
     </SectionCard>
   );
 };

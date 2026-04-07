@@ -11,6 +11,7 @@
     "dev:server": "npm --prefix server run dev",
     "build:client": "npm --prefix client run build",
     "start:server": "npm --prefix server run start",
+    "start": "npm --prefix server run start",
     "test:server": "node server/scripts/run-tests.js"
   }
 }

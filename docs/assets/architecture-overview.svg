@@ -1,0 +1,35 @@
+<svg width="960" height="420" viewBox="0 0 960 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="420" rx="24" fill="#F8FAFC"/>
+  <rect x="40" y="60" width="180" height="92" rx="18" fill="#E0E7FF"/>
+  <text x="130" y="98" text-anchor="middle" font-size="20" font-family="Segoe UI, sans-serif" fill="#312E81">Upload</text>
+  <text x="130" y="126" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#4338CA">TXT / VTT transcripts</text>
+
+  <rect x="270" y="60" width="180" height="92" rx="18" fill="#DBEAFE"/>
+  <text x="360" y="98" text-anchor="middle" font-size="20" font-family="Segoe UI, sans-serif" fill="#1E3A8A">Parse + Store</text>
+  <text x="360" y="126" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#1D4ED8">MongoDB meeting records</text>
+
+  <rect x="500" y="60" width="180" height="92" rx="18" fill="#DCFCE7"/>
+  <text x="590" y="98" text-anchor="middle" font-size="20" font-family="Segoe UI, sans-serif" fill="#14532D">Extract Insights</text>
+  <text x="590" y="126" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#15803D">Summary, actions, sentiment</text>
+
+  <rect x="730" y="60" width="190" height="92" rx="18" fill="#FCE7F3"/>
+  <text x="825" y="98" text-anchor="middle" font-size="20" font-family="Segoe UI, sans-serif" fill="#9D174D">Retrieve + Answer</text>
+  <text x="825" y="126" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#BE185D">Chat with citations</text>
+
+  <rect x="200" y="238" width="250" height="110" rx="20" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <text x="325" y="274" text-anchor="middle" font-size="22" font-family="Segoe UI, sans-serif" fill="#0F172A">Dashboard</text>
+  <text x="325" y="304" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#475569">Upload status, metrics, global insights</text>
+  <text x="325" y="326" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#475569">Demo-ready overview</text>
+
+  <rect x="510" y="238" width="250" height="110" rx="20" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <text x="635" y="274" text-anchor="middle" font-size="22" font-family="Segoe UI, sans-serif" fill="#0F172A">Meeting Detail</text>
+  <text x="635" y="304" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#475569">Summary card, decisions, action items</text>
+  <text x="635" y="326" text-anchor="middle" font-size="14" font-family="Segoe UI, sans-serif" fill="#475569">Sentiment and evidence</text>
+
+  <path d="M220 106H270" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M450 106H500" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M680 106H730" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M590 152V198" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M590 198H635" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M590 198H325" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+</svg>

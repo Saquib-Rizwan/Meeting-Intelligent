@@ -1,0 +1,19 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:08.000
+Alice: Thanks everyone. We need to settle the beta launch plan for the analytics dashboard.
+
+00:00:08.500 --> 00:00:16.500
+Bob: QA cleared the internal build, but the external onboarding flow still needs one regression fix.
+
+00:00:17.000 --> 00:00:26.000
+Priya: The final decision is to launch the beta to internal users first and delay public rollout by one week.
+
+00:00:26.500 --> 00:00:34.000
+Alice: Bob, you will coordinate the regression fix by Thursday and share the release note draft.
+
+00:00:34.500 --> 00:00:43.000
+Bob: I will send the updated checklist by Thursday afternoon.
+
+00:00:43.500 --> 00:00:52.000
+Priya: We will go with a guided onboarding walkthrough for the first internal release.

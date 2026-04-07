@@ -1,0 +1,181 @@
+WEBVTT
+
+00:00.000 --> 00:00.120
+Maya: Thanks everyone. This is the Q3 platform launch review for Project Atlas.
+
+00:00.120 --> 00:00.240
+Ravi: We have four topics today: API launch timing, pricing rollout, mobile crash fixes, and customer migration.
+
+00:00.240 --> 00:00.390
+Elena: Before we start, Finance is concerned that the current launch plan could increase support costs by 18 percent in the first month.
+
+00:00.390 --> 00:00.540
+Jordan: Support also logged three repeated customer complaints in the pilot: slow dashboard load, confusing billing labels, and broken CSV export on Safari.
+
+00:00.540 --> 00:01.080
+Maya: Good. Let's capture the blockers clearly and make sure we leave with actual decisions, not just discussion.
+
+00:01.080 --> 00:01.220
+Ravi: First topic, the API launch. QA found a regression in token refresh, and staging failed twice yesterday.
+
+00:01.220 --> 00:01.370
+Elena: If we launch the public API this Friday and the bug survives, Finance expects refunds and churn risk from enterprise clients.
+
+00:01.370 --> 00:01.510
+Jordan: Customer Success agrees the risk is real. Two design partners already asked whether we are delaying because they saw timeout errors.
+
+00:01.510 --> 00:02.060
+Priya: From engineering, I think we can fix the token refresh issue by Monday, but not safely by Friday.
+
+00:02.060 --> 00:02.180
+Maya: Does anyone disagree with delaying the public API launch by one week?
+
+00:02.180 --> 00:02.240
+Ravi: No disagreement from me.
+
+00:02.240 --> 00:02.380
+Elena: Agreed that launching on Friday would be reckless, but I want the exact customer message ready today.
+
+00:02.380 --> 00:02.540
+Maya: The final decision is to delay the public API launch by one week and keep the beta limited to internal and pilot customers.
+
+00:02.540 --> 00:03.080
+Jordan: That gives Support time to prepare updated macros and a clearer status page notice.
+
+00:03.080 --> 00:03.240
+Priya: Action item, Priya will patch the token refresh regression and publish a verification summary by Monday 5 PM.
+
+00:03.240 --> 00:03.390
+Jordan: Action item, Jordan will draft the customer communication for pilot accounts by today 6 PM.
+
+00:03.390 --> 00:03.540
+Elena: Action item, Elena will review refund exposure assumptions and share the revised risk note by tomorrow noon.
+
+00:03.540 --> 00:04.060
+Maya: Second topic, pricing rollout for the analytics add-on.
+
+00:04.060 --> 00:04.210
+Elena: I recommend we avoid the annual discount for the first month because margin is already thin.
+
+00:04.210 --> 00:04.360
+Ravi: Product originally proposed a 20 percent launch discount for both monthly and annual plans.
+
+00:04.360 --> 00:04.510
+Jordan: Sales says a launch discount helps conversion, but they do not need it on annual if onboarding credits remain.
+
+00:04.510 --> 00:05.060
+Maya: We discussed three options last night: no discount, monthly-only discount, or both monthly and annual.
+
+00:05.060 --> 00:05.180
+Priya: Maybe monthly-only is the least risky path.
+
+00:05.180 --> 00:05.310
+Elena: Yes, monthly-only is acceptable. Annual discount would hurt too much.
+
+00:05.310 --> 00:05.480
+Maya: The decision is to offer a 10 percent launch discount on monthly plans only, with no annual discount in the first month.
+
+00:05.480 --> 00:06.020
+Ravi: Please note that this decision depends on updated pricing copy landing before launch.
+
+00:06.020 --> 00:06.170
+Jordan: Action item, Jordan will update the pricing page copy and FAQ by Wednesday 3 PM.
+
+00:06.170 --> 00:06.330
+Elena: Action item, Elena will send the approved pricing guardrails to Sales by Wednesday noon.
+
+00:06.330 --> 00:06.440
+Maya: Third topic, mobile stability.
+
+00:06.440 --> 00:06.580
+Priya: Android crash reports are down, but iOS still has a spike when users export filtered reports.
+
+00:06.580 --> 00:07.040
+Ravi: How bad is it?
+
+00:07.040 --> 00:07.170
+Priya: About 7 percent of iOS sessions that hit export after changing date filters.
+
+00:07.170 --> 00:07.310
+Jordan: That explains the angry messages from the field team yesterday. One customer called the app unusable.
+
+00:07.310 --> 00:07.380
+Maya: That sounds serious.
+
+00:07.380 --> 00:07.520
+Priya: It is serious, but the root cause is narrow. We can hotfix it by Thursday if QA gets a stable build tomorrow.
+
+00:07.520 --> 00:08.050
+Ravi: We should not label mobile stable until the export crash is gone.
+
+00:08.050 --> 00:08.210
+Maya: Approved. We will hotfix the iOS filtered-export crash before calling the mobile release stable.
+
+00:08.210 --> 00:08.340
+Elena: I support that. A bad mobile experience would undermine the launch story.
+
+00:08.340 --> 00:08.490
+Priya: Action item, Priya will hand QA a stable iOS candidate build by tomorrow 11 AM.
+
+00:08.490 --> 00:09.030
+Ravi: Action item, Ravi will update the release checklist and mark mobile stability as blocked until QA signs off.
+
+00:09.030 --> 00:09.150
+Maya: Fourth topic, customer migration from legacy dashboards.
+
+00:09.150 --> 00:09.280
+Jordan: Enterprise admins want a rollback option during the first migration wave.
+
+00:09.280 --> 00:09.420
+Ravi: Engineering can support rollback for phase one, but only for the top twenty accounts.
+
+00:09.420 --> 00:09.560
+Elena: That is fine financially. We just cannot support unlimited rollback labor.
+
+00:09.560 --> 00:10.100
+Maya: So for phase one, are we aligned on offering rollback only to the first twenty enterprise accounts?
+
+00:10.100 --> 00:10.170
+Jordan: Yes, that seems manageable.
+
+00:10.170 --> 00:10.230
+Priya: Agreed.
+
+00:10.230 --> 00:10.290
+Elena: Agreed.
+
+00:10.290 --> 00:10.460
+Maya: The final decision was to provide rollback support only for the first twenty enterprise migration accounts in phase one.
+
+00:10.460 --> 00:11.010
+Jordan: Action item, Jordan will publish the migration readiness checklist for customer-facing teams by Friday noon.
+
+00:11.010 --> 00:11.170
+Ravi: Action item, Ravi will confirm the list of the first twenty migration accounts by Thursday 2 PM.
+
+00:11.170 --> 00:11.290
+Maya: Before we close, what were the strongest concerns raised today?
+
+00:11.290 --> 00:11.420
+Elena: Refund exposure, support load, and margin erosion from pricing discounts.
+
+00:11.420 --> 00:11.570
+Jordan: From customers, the biggest concerns were reliability, confusing billing labels, and rollback safety during migration.
+
+00:11.570 --> 00:12.120
+Priya: From engineering, the main risk is shipping before QA validates the token refresh and iOS export fixes.
+
+00:12.120 --> 00:12.250
+Maya: Great summary. We are not deciding anything new here, just restating the risks.
+
+00:12.250 --> 00:12.390
+Ravi: We also agreed to review onboarding metrics next Tuesday, but that is not a final strategic decision yet.
+
+00:12.390 --> 00:12.510
+Maya: Correct. Next Tuesday is a follow-up checkpoint, not a launch decision.
+
+00:12.510 --> 00:13.050
+Elena: One more note, if refund exposure exceeds the forecast, we should revisit pricing immediately.
+
+00:13.050 --> 00:13.200
+Maya: Thanks everyone. Recap: delay public API launch one week, monthly-only pricing discount, fix iOS export before stable release, and limit rollback support to the first twenty enterprise accounts.

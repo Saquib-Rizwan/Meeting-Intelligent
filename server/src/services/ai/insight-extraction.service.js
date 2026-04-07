@@ -3,11 +3,17 @@ import { huggingFaceProvider } from "./providers/huggingface.provider.js";
 import { AppError } from "../../utils/app-error.js";
 
 const MAX_CHUNK_CHARACTERS = 12000;
-const MIN_REQUIRED_DECISIONS = 1;
+const MIN_REQUIRED_DECISIONS = 0;
 const MIN_REQUIRED_ACTIONS = 1;
+const IMPORTANT_STAGES = new Set([
+  "extraction-start",
+  "extraction-complete"
+]);
 
 const logExtractionStage = (meetingId, stage, details = {}) => {
-  console.log(`[meeting-processing] meeting=${meetingId} stage=${stage}`, details);
+  if (IMPORTANT_STAGES.has(stage)) {
+    console.log(`[meeting-processing] meeting=${meetingId} stage=${stage}`, details);
+  }
 };
 
 const chunkUtterances = (utterances) => {
@@ -58,21 +64,7 @@ const buildSafetyFallbackInsights = ({ utterances, transcriptText, ruleBasedInsi
     transcriptSentences.slice(0, 2).join(" ").slice(0, 1500) ||
     normalizedUtterances.slice(0, 2).map((utterance) => utterance.text).join(" ").slice(0, 1500);
 
-  const decisions =
-    ruleBasedInsights?.decisions?.length
-      ? ruleBasedInsights.decisions
-      : normalizedUtterances.slice(0, 2).map((utterance) => ({
-          text: utterance.text,
-          citations: [
-            {
-              utteranceId: utterance.utteranceId,
-              startTimeMs: utterance.startTimeMs,
-              endTimeMs: utterance.endTimeMs,
-              speaker: utterance.speaker,
-              snippet: utterance.text.slice(0, 240)
-            }
-          ]
-        }));
+  const decisions = ruleBasedInsights?.decisions?.length ? ruleBasedInsights.decisions : [];
 
   const actionItems =
     ruleBasedInsights?.actionItems?.length
@@ -115,28 +107,6 @@ const ensureMinimumInsights = ({ utterances, insights }) => {
 
   if (!safeInsights.summary) {
     safeInsights.summary = utterances.slice(0, 2).map((utterance) => utterance.text).join(" ");
-  }
-
-  if (safeInsights.decisions.length < MIN_REQUIRED_DECISIONS) {
-    const fallbackUtterance = utterances.find((utterance) => utterance?.text?.trim());
-
-    if (fallbackUtterance) {
-      safeInsights.decisions = [
-        ...safeInsights.decisions,
-        {
-          text: `Team direction captured: ${fallbackUtterance.text.trim()}`,
-          citations: [
-            {
-              utteranceId: fallbackUtterance.utteranceId,
-              startTimeMs: fallbackUtterance.startTimeMs,
-              endTimeMs: fallbackUtterance.endTimeMs,
-              speaker: fallbackUtterance.speaker,
-              snippet: fallbackUtterance.text.slice(0, 240)
-            }
-          ]
-        }
-      ].slice(0, MIN_REQUIRED_DECISIONS);
-    }
   }
 
   if (safeInsights.actionItems.length < MIN_REQUIRED_ACTIONS) {

@@ -25,9 +25,16 @@ const buildTranscriptStats = (utterances, speakers) => ({
       ? utterances[utterances.length - 1].endTimeMs
       : 0
 });
+const IMPORTANT_STAGES = new Set([
+  "meeting-created",
+  "meeting-processed",
+  "processing-failed"
+]);
 
 const logProcessingStage = (meetingId, stage, details = {}) => {
-  console.log(`[meeting-processing] meeting=${meetingId} stage=${stage}`, details);
+  if (IMPORTANT_STAGES.has(stage)) {
+    console.log(`[meeting-processing] meeting=${meetingId} stage=${stage}`, details);
+  }
 };
 
 export const meetingProcessingService = {
@@ -135,7 +142,7 @@ export const meetingProcessingService = {
         });
       }
 
-      if (!insights.decisions?.length || !insights.actionItems?.length) {
+      if (!insights.actionItems?.length) {
         throw new AppError("Insight extraction returned incomplete results", 500, {
           meetingId: String(meeting._id),
           decisions: insights.decisions?.length || 0,

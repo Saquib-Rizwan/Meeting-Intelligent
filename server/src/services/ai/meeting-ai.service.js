@@ -36,9 +36,10 @@ const STOP_WORDS = new Set([
 ]);
 
 const DECISION_PATTERNS = [
-  /\b(decided|decision|agreed|approved|finalized|locked in|we will go with)\b/i,
-  /\b(let'?s proceed with|moving forward with|sign off on)\b/i,
-  /\b(final decision|we will|we'll|let'?s do|let'?s ship|chosen approach)\b/i
+  /\b(?:final decision is|final decision was|decision is|decision was|decided to|approved|approval granted for)\s+(.+)/i,
+  /\b(?:we will go with|moving forward with|let'?s proceed with|chosen approach is|selected option is)\s+(.+)/i,
+  /\b(?:we will|we'll)\s+(use|launch|ship|move forward with|adopt|deprecate|prioritize|proceed with|standardize on)\s+(.+)/i,
+  /\b(?:choose|chose|chosen|select|selected)\s+(.+)/i
 ];
 
 const ACTION_PATTERNS = [
@@ -55,14 +56,33 @@ const DEADLINE_PATTERNS = [
 
 const POSITIVE_TERMS = ["good", "great", "done", "approved", "aligned", "resolved"];
 const NEGATIVE_TERMS = ["blocked", "risk", "issue", "delay", "problem", "concern"];
-const PERSON_TASK_PATTERN =
-  /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:will|should|needs to|must|can)\s+(.+)/;
-const IMPLIED_OWNER_PATTERN =
-  /\b(i|we|you)\s+(?:will|should|need to|must|can)\s+(.+)/i;
-
+const NON_DECISION_QUALIFIERS = [
+  /\b(?:agree|agreed|agreement|aligned|alignment)\b/i,
+  /\b(?:maybe|perhaps|probably|possibly|might|could|can|should|would)\b/i,
+  /\b(?:think|proposal|propose|proposed|suggest|suggested|recommend|recommended|prefer|preferred)\b/i,
+  /\b(?:discuss|discussed|consider|considering|explore|exploring|review|reviewing|brainstorm)\b/i
+];
+const STRONG_DECISION_SIGNAL_PATTERN =
+  /\b(?:final decision|decision is|decision was|approved|approval granted|selected|chosen|decided to|we will go with|moving forward with|let'?s proceed with|we(?:\s+will|'ll)\s+(?:use|launch|ship|move forward with|adopt|deprecate|prioritize|proceed with|standardize on))\b/i;
+const WEAK_DECISION_TEXT_PATTERN =
+  /^(?:agree|agreed|agreement|aligned|alignment|yes|yeah|okay|ok|sounds good)\b/i;
+const NON_DECISION_LEAD_PATTERN =
+  /^(?:review|revisit|discuss|consider|explore|brainstorm|check|investigate|follow up on)\b/i;
 const normalizeToken = (token) => token.toLowerCase().replace(/[^a-z0-9]/g, "");
 const normalizeWhitespace = (text) => String(text || "").replace(/\s+/g, " ").trim();
 const cleanSentence = (text) => normalizeWhitespace(String(text || "").replace(/^[\-\*\d.\s]+/, ""));
+const TARGET_YOU_WILL_PATTERN = /\b([A-Z][a-z]+),?\s+you will\b/i;
+const TARGET_WILL_PATTERN = /\b([A-Z][a-z]+)\s+will\b/i;
+const TARGET_ASSIGN_PATTERN = /\bassign\s+([A-Z][a-z]+)\s+to\b/i;
+const DECISION_PREFIX_CLEANUP_PATTERNS = [
+  /^(?:we\s+)?agreed\s+to\s+/i,
+  /^(?:the\s+)?final decision\s+(?:is|was)\s+/i,
+  /^(?:the\s+)?decision\s+(?:is|was)\s+/i,
+  /^we\s+will\s+go\s+with\s+/i,
+  /^moving\s+forward\s+with\s+/i,
+  /^let'?s\s+proceed\s+with\s+/i,
+  /^approved\s+/i
+];
 
 const extractKeywords = (text, maxKeywords = 6) => {
   const counts = new Map();
@@ -92,7 +112,7 @@ const buildCitation = (utterance) => ({
 const buildActionItem = (utterance, overrides = {}) => ({
   owner:
     overrides.owner ??
-    (utterance.speaker && utterance.speaker !== "Unknown" ? utterance.speaker : ""),
+    (utterance.speaker && utterance.speaker !== "Unknown" ? utterance.speaker : "Unknown"),
   task: cleanSentence(overrides.task ?? utterance.text),
   deadline: overrides.deadline ?? inferDeadline(utterance.text),
   citations: [buildCitation(utterance)],
@@ -167,41 +187,106 @@ const buildFallbackSummary = (utterances) =>
     .join(" ")
     .slice(0, 900);
 
+const normalizeDecisionText = (text) => {
+  let normalized = cleanSentence(text)
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  DECISION_PREFIX_CLEANUP_PATTERNS.forEach((pattern) => {
+    normalized = normalized.replace(pattern, "");
+  });
+
+  normalized = normalized.replace(/^to\s+/i, "");
+  normalized = normalized.replace(/\b(?:by|before)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b.*$/i, "").trim();
+  normalized = normalized.replace(/[.?!]+$/, "").trim();
+
+  if (!normalized) {
+    return cleanSentence(text);
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const isCredibleDecision = (utterance, decisionText) => {
+  const sourceText = cleanSentence(utterance?.text);
+  const normalizedDecision = cleanSentence(decisionText);
+  const hasStrongDecisionSignal = STRONG_DECISION_SIGNAL_PATTERN.test(sourceText);
+
+  if (!sourceText || !normalizedDecision || normalizedDecision.length < 8) {
+    return false;
+  }
+
+  if (/\?$/.test(sourceText)) {
+    return false;
+  }
+
+  if (WEAK_DECISION_TEXT_PATTERN.test(normalizedDecision)) {
+    return false;
+  }
+
+  if (NON_DECISION_LEAD_PATTERN.test(normalizedDecision) && !hasStrongDecisionSignal) {
+    return false;
+  }
+
+  if (
+    NON_DECISION_QUALIFIERS.some((pattern) => pattern.test(sourceText)) &&
+    !hasStrongDecisionSignal
+  ) {
+    return false;
+  }
+
+  if (/^(?:yes|yeah|agreed|sounds good|okay|ok)\b/i.test(sourceText)) {
+    return false;
+  }
+
+  return true;
+};
+
+const extractDecisionText = (utterance) => {
+  const sentence = cleanSentence(utterance.text);
+
+  for (const pattern of DECISION_PATTERNS) {
+    const match = sentence.match(pattern);
+
+    if (!match) {
+      continue;
+    }
+
+    if (match[1] && match[2]) {
+      return normalizeDecisionText(`${match[1]} ${match[2]}`);
+    }
+
+    if (match[1]) {
+      return normalizeDecisionText(match[1]);
+    }
+  }
+
+  return null;
+};
+
 const buildDecisions = (utterances) => {
   const matchedDecisions = utterances
-    .filter((utterance) => DECISION_PATTERNS.some((pattern) => pattern.test(utterance.text)))
+    .map((utterance) => ({
+      utterance,
+      decisionText: extractDecisionText(utterance)
+    }))
+    .filter((item) => item.decisionText && isCredibleDecision(item.utterance, item.decisionText))
+    .filter(
+      (item, index, items) =>
+        items.findIndex(
+          (candidate) =>
+            cleanSentence(candidate.decisionText).toLowerCase() ===
+            cleanSentence(item.decisionText).toLowerCase()
+        ) === index
+    )
     .slice(0, 10)
-    .map((utterance) => ({
-      text: utterance.text,
+    .map(({ utterance, decisionText }) => ({
+      text: decisionText,
       citations: [buildCitation(utterance)]
     }));
 
-  if (matchedDecisions.length) {
-    return matchedDecisions;
-  }
-
-  const fallbackDecisions = utterances
-    .filter((utterance) => ACTION_PATTERNS.some((pattern) => pattern.test(utterance.text)))
-    .slice(0, 2)
-    .map((utterance) => ({
-      text: utterance.text,
-      citations: [buildCitation(utterance)]
-    }));
-
-  if (fallbackDecisions.length) {
-    return fallbackDecisions;
-  }
-
-  const firstMeaningfulUtterance = utterances.find((utterance) => cleanSentence(utterance.text));
-
-  return firstMeaningfulUtterance
-    ? [
-        {
-          text: `Team direction captured: ${cleanSentence(firstMeaningfulUtterance.text)}`,
-          citations: [buildCitation(firstMeaningfulUtterance)]
-        }
-      ]
-    : [];
+  return matchedDecisions;
 };
 
 const inferDeadline = (text) => {
@@ -212,42 +297,44 @@ const inferDeadline = (text) => {
     }
   }
 
-  return "";
+  return null;
+};
+
+const inferActionOwner = (utterance) => {
+  const sentence = String(utterance.text || "");
+  const speaker = utterance.speaker && utterance.speaker !== "Unknown" ? utterance.speaker : "Unknown";
+  const youWillMatch = sentence.match(TARGET_YOU_WILL_PATTERN);
+
+  if (youWillMatch?.[1]) {
+    return youWillMatch[1];
+  }
+
+  const assignMatch = sentence.match(TARGET_ASSIGN_PATTERN);
+
+  if (assignMatch?.[1]) {
+    return assignMatch[1];
+  }
+
+  const willMatch = sentence.match(TARGET_WILL_PATTERN);
+
+  if (willMatch?.[1]) {
+    return willMatch[1];
+  }
+
+  return speaker;
 };
 
 const buildActionItems = (utterances) => {
   const matchedActions = utterances
     .filter((utterance) => ACTION_PATTERNS.some((pattern) => pattern.test(utterance.text)))
     .slice(0, 15)
-    .map((utterance) => {
-      const explicitPersonMatch = utterance.text.match(PERSON_TASK_PATTERN);
-
-      if (explicitPersonMatch) {
-        return buildActionItem(utterance, {
-          owner: explicitPersonMatch[1],
-          task: explicitPersonMatch[2]
-        });
-      }
-
-      const impliedOwnerMatch = utterance.text.match(IMPLIED_OWNER_PATTERN);
-
-      if (impliedOwnerMatch) {
-        const pronoun = impliedOwnerMatch[1].toLowerCase();
-        const owner =
-          pronoun === "i"
-            ? utterance.speaker || ""
-            : pronoun === "we"
-              ? "Team"
-              : "You";
-
-        return buildActionItem(utterance, {
-          owner,
-          task: impliedOwnerMatch[2]
-        });
-      }
-
-      return buildActionItem(utterance);
-    });
+    .map((utterance) =>
+      buildActionItem(utterance, {
+        owner: inferActionOwner(utterance),
+        task: cleanSentence(utterance.text),
+        deadline: inferDeadline(utterance.text)
+      })
+    );
 
   if (matchedActions.length) {
     return matchedActions;
@@ -288,6 +375,27 @@ const buildSpeakerSentiments = (sentimentTimeline) => {
     averageSentiment: Number((entry.total / entry.utteranceCount).toFixed(2)),
     utteranceCount: entry.utteranceCount
   }));
+};
+
+export const buildSpeakerStats = (utterances) => {
+  const speakerStats = {};
+
+  utterances.forEach((utterance) => {
+    const speaker = utterance.speaker && utterance.speaker !== "Unknown" ? utterance.speaker : "Unknown";
+    speakerStats[speaker] = (speakerStats[speaker] || 0) + 1;
+  });
+
+  console.log("Speaker stats:", speakerStats);
+
+  const speakers = Object.entries(speakerStats)
+    .map(([speaker, utteranceCount]) => ({ speaker, utteranceCount }))
+    .sort((left, right) => right.utteranceCount - left.utteranceCount);
+
+  return {
+    speakerStats,
+    mostActiveSpeaker: speakers[0] || null,
+    leastActiveSpeaker: speakers[speakers.length - 1] || null
+  };
 };
 
 const buildTranscriptChunks = (utterances, chunkSize = 4) => {
@@ -336,6 +444,19 @@ export const meetingAiService = {
     const summary = buildSummary(utterances) || buildFallbackSummary(utterances);
     const decisions = buildDecisions(utterances);
     const actionItems = buildActionItems(utterances);
+    const speakerTracking = buildSpeakerStats(utterances);
+    console.log("Parsed utterances:", utterances);
+    console.log("[extraction] extracted decisions", decisions);
+    console.log("Extracted actions:", actionItems);
+
+    if (!decisions.length) {
+      console.warn("[extraction] no decisions extracted");
+    }
+
+    if (!actionItems.length) {
+      console.warn("[extraction] no action items extracted");
+    }
+
     const sentimentTimeline = buildSentimentTimeline(utterances);
     const speakerSentiments = buildSpeakerSentiments(sentimentTimeline);
     const transcriptChunks = buildTranscriptChunks(utterances);
@@ -344,6 +465,7 @@ export const meetingAiService = {
       summary,
       decisions,
       actionItems,
+      speakerTracking,
       sentimentTimeline,
       speakerSentiments,
       transcriptChunks

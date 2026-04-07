@@ -1,12 +1,14 @@
 import { Route, Routes } from "react-router-dom";
 
-import DashboardPage from "./pages/DashboardPage.jsx";
+import HomePage from "./pages/HomePage.jsx";
 import MeetingDetailPage from "./pages/MeetingDetailPage.jsx";
+import MeetingsPage from "./pages/MeetingsPage.jsx";
 
 const App = () => {
   return (
     <Routes>
-      <Route path="/" element={<DashboardPage />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/meetings" element={<MeetingsPage />} />
       <Route path="/meetings/:meetingId" element={<MeetingDetailPage />} />
     </Routes>
   );

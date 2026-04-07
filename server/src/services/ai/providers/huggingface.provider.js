@@ -1,14 +1,15 @@
 const HF_API_BASE_URL = "https://api-inference.huggingface.co/models";
 
 import { AppError } from "../../../utils/app-error.js";
+import { env } from "../../../config/env.js";
 
 const getHeaders = () => {
-  if (!process.env.HUGGINGFACE_API_KEY) {
+  if (!env.huggingFaceApiKey) {
     throw new AppError("HUGGINGFACE_API_KEY is not configured", 500);
   }
 
   return {
-    Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+    Authorization: `Bearer ${env.huggingFaceApiKey}`,
     "Content-Type": "application/json"
   };
 };
@@ -70,6 +71,38 @@ export const huggingFaceProvider = {
       answer: result.answer || "",
       score: result.score || 0
     };
+  },
+
+  async generateGroundedAnswer({ question, context }) {
+    const prompt = [
+      "You are a helpful meeting assistant.",
+      "Answer the user's question in a natural, concise way using only the transcript context.",
+      "Do not invent facts.",
+      "If the answer is uncertain, say that briefly.",
+      "Do not include citations or bullet labels unless they are clearly helpful.",
+      "",
+      `Question: ${question}`,
+      "",
+      "Transcript context:",
+      context,
+      "",
+      "Answer:"
+    ].join("\n");
+
+    const result = await callInferenceApi(env.huggingFaceChatModel, {
+      inputs: prompt,
+      parameters: {
+        max_new_tokens: 180,
+        temperature: 0.2,
+        return_full_text: false
+      }
+    });
+
+    const generatedText = Array.isArray(result)
+      ? result[0]?.generated_text || result[0]?.summary_text || ""
+      : result?.generated_text || result?.summary_text || "";
+
+    return generatedText.trim();
   },
 
   async sentimentAnalysis(text) {

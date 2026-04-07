@@ -1,4 +1,10 @@
 import SectionCard from "./SectionCard.jsx";
+import {
+  formatSpeakerLabel,
+  formatSentimentRating,
+  sentimentToRating,
+  sentimentToToneLabel
+} from "../lib/display.js";
 
 const SpeakerSentimentChart = ({ speakerSentiments = [] }) => {
   const maxValue = Math.max(
@@ -8,8 +14,8 @@ const SpeakerSentimentChart = ({ speakerSentiments = [] }) => {
 
   return (
     <SectionCard
-      title="Speaker Sentiment"
-      description="Average sentiment score by speaker based on extracted transcript sentiment."
+      title="Speaker Analytics"
+      description="Average tone by speaker based on the extracted transcript sentiment."
     >
       <div className="space-y-4">
         {speakerSentiments.length ? (
@@ -23,13 +29,19 @@ const SpeakerSentimentChart = ({ speakerSentiments = [] }) => {
                   : "bg-amber-400";
 
             return (
-              <div key={item.speaker} className="space-y-2">
+              <div key={item.speaker} className="rounded-2xl border border-[#e1e6e2] bg-[#f3f4f2] p-4">
                 <div className="flex items-center justify-between text-sm text-slate-700">
-                  <span className="font-semibold text-slate-900">{item.speaker}</span>
-                  <span>{item.averageSentiment?.toFixed(2)} ({item.utteranceCount} utterances)</span>
+                  <span className="font-semibold text-slate-900">{formatSpeakerLabel(item.speaker)}</span>
+                  <span>{formatSentimentRating(item.averageSentiment || 0)} ({item.utteranceCount} utterances)</span>
                 </div>
-                <div className="h-3 rounded-full bg-slate-100">
+                <div className="mt-2 text-xs text-slate-500">
+                  {sentimentToToneLabel(item.averageSentiment || 0)} speaker tone
+                </div>
+                <div className="mt-3 h-3 rounded-full bg-white">
                   <div className={`h-3 rounded-full ${barColor}`} style={{ width }} />
+                </div>
+                <div className="mt-2 text-right text-xs text-slate-500">
+                  Relative intensity: {sentimentToRating(item.averageSentiment || 0)}
                 </div>
               </div>
             );

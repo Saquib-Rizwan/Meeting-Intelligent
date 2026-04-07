@@ -1,11 +1,15 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color: #191c1e;
-  background: #f7f9fb;
-  font-family: Inter, "Segoe UI", sans-serif;
+  background: #f9faf8;
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --panel-shadow: 0 10px 30px rgba(16, 24, 40, 0.06);
+  --panel-border: rgba(111, 122, 114, 0.18);
 }
 
 html {
@@ -16,9 +20,12 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(195, 192, 255, 0.18), transparent 28%),
-    linear-gradient(180deg, #f7f9fb 0%, #eef2f7 100%);
+    radial-gradient(circle at top left, rgba(138, 214, 174, 0.15), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(253, 138, 66, 0.08), transparent 24%),
+    linear-gradient(180deg, #f9faf8 0%, #f1f5f2 100%);
+  color: #191c1b;
 }
 
 * {
@@ -33,4 +40,16 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+button {
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
 }

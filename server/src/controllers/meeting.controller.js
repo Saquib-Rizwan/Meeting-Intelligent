@@ -55,3 +55,24 @@ export const exportMeeting = async (req, res, next) => {
     next(error);
   }
 };
+
+export const exportMeetingReport = async (req, res, next) => {
+  try {
+    const exportFile = await meetingService.exportMeetingReport(req.params.meetingId);
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Content-Disposition", `inline; filename="${exportFile.fileName}"`);
+    res.send(exportFile.content);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMeeting = async (req, res, next) => {
+  try {
+    await meetingService.deleteMeeting(req.params.meetingId);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};

@@ -56,6 +56,37 @@ const STOPWORDS = new Set([
   "your"
 ]);
 
+const WHY_MARKERS = [
+  "because",
+  "due",
+  "reason",
+  "risk",
+  "issue",
+  "issues",
+  "problem",
+  "problems",
+  "bug",
+  "bugs",
+  "error",
+  "errors",
+  "failed",
+  "failure",
+  "regression",
+  "token",
+  "refresh",
+  "timeout",
+  "refund",
+  "refunds",
+  "churn",
+  "cost",
+  "costs",
+  "support",
+  "staging",
+  "qa",
+  "blocker",
+  "blockers"
+];
+
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const normalizeText = (value) =>
@@ -72,12 +103,30 @@ const tokenize = (value) =>
 
 const dedupeTokens = (tokens) => [...new Set(tokens)];
 
+const detectIntent = (query) => {
+  const normalized = normalizeText(query);
+
+  if (/\bwhy\b/.test(normalized)) {
+    return "why";
+  }
+
+  return "general";
+};
+
+const expandTokensForIntent = (tokens, intent) => {
+  if (intent !== "why") {
+    return tokens;
+  }
+
+  return dedupeTokens([...tokens, ...WHY_MARKERS]);
+};
+
 const countOccurrences = (text, token) => {
   const matches = text.match(new RegExp(`\\b${escapeRegExp(token)}\\b`, "g"));
   return matches?.length || 0;
 };
 
-const scoreChunk = (queryTokens, chunk) => {
+const scoreChunk = (queryTokens, chunk, intent = "general") => {
   const normalizedText = normalizeText(chunk.text);
   const keywordTokens = tokenize((chunk.keywords || []).join(" "));
   const keywordSet = new Set(keywordTokens);
@@ -104,7 +153,21 @@ const scoreChunk = (queryTokens, chunk) => {
     return 0;
   }
 
-  return overlapCount * 10 + frequencyScore * 3 + keywordBonus;
+  let score = overlapCount * 10 + frequencyScore * 3 + keywordBonus;
+
+  if (intent === "why") {
+    const causalMarkerHits = WHY_MARKERS.filter(
+      (token) => normalizedText.includes(token) || keywordSet.has(token)
+    ).length;
+
+    if (/\b(because|due to|root cause|main risk|concerned|expects|not safely|failed)\b/.test(normalizedText)) {
+      score += 10;
+    }
+
+    score += causalMarkerHits * 2;
+  }
+
+  return score;
 };
 
 const flattenChunks = (insights) =>
@@ -140,7 +203,11 @@ export const retrievalService = {
 
     const queryTokens = dedupeTokens(tokenize(query));
     const fallbackTokens = dedupeTokens(normalizedQuery.split(" ").filter(Boolean));
-    const effectiveTokens = queryTokens.length ? queryTokens : fallbackTokens;
+    const intent = detectIntent(query);
+    const effectiveTokens = expandTokensForIntent(
+      queryTokens.length ? queryTokens : fallbackTokens,
+      intent
+    );
     const meetingIdList = [meetingId, ...(meetingIds || [])].filter(Boolean);
     const match = meetingIdList.length ? { meetingId: { $in: meetingIdList } } : {};
 
@@ -158,7 +225,7 @@ export const retrievalService = {
     return dedupeChunks(flattenChunks(insights))
       .map((chunk) => ({
         ...chunk,
-        score: scoreChunk(effectiveTokens, chunk)
+        score: scoreChunk(effectiveTokens, chunk, intent)
       }))
       .filter((chunk) => chunk.score > 0)
       .sort((left, right) => {

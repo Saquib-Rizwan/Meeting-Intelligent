@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "../components/AppShell.jsx";
-import ChatSection from "../components/ChatSection.jsx";
 import GlobalInsightsPanel from "../components/GlobalInsightsPanel.jsx";
-import MeetingSummaryCard from "../components/MeetingSummaryCard.jsx";
-import MeetingsOverview from "../components/MeetingsOverview.jsx";
-import MetricCard from "../components/MetricCard.jsx";
-import ProcessSection from "../components/ProcessSection.jsx";
+import MeetingSelectionList from "../components/MeetingSelectionList.jsx";
+import SelectedMeetingWorkspace from "../components/SelectedMeetingWorkspace.jsx";
 import UploadSection from "../components/UploadSection.jsx";
-import { getGlobalInsights, listMeetings } from "../lib/api.js";
+import { getGlobalInsights, getMeetingById, listMeetings } from "../lib/api.js";
+import { formatSentimentRating } from "../lib/display.js";
 
 const DashboardPage = () => {
-  const [latestMeetingId, setLatestMeetingId] = useState("");
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
   const [meetings, setMeetings] = useState([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [meetingsError, setMeetingsError] = useState("");
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [loadingSelectedMeeting, setLoadingSelectedMeeting] = useState(false);
+  const [selectedMeetingError, setSelectedMeetingError] = useState("");
   const [globalInsights, setGlobalInsights] = useState(null);
   const [loadingGlobalInsights, setLoadingGlobalInsights] = useState(true);
   const [globalInsightsError, setGlobalInsightsError] = useState("");
-  const [latestProcessedMeeting, setLatestProcessedMeeting] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
 
   const loadMeetings = async () => {
     setLoadingMeetings(true);
@@ -30,13 +31,34 @@ const DashboardPage = () => {
 
       setMeetings(nextMeetings);
 
-      if (!latestMeetingId && nextMeetings[0]?._id) {
-        setLatestMeetingId(nextMeetings[0]._id);
+      if (!selectedMeetingId && nextMeetings[0]?._id) {
+        setSelectedMeetingId(nextMeetings[0]._id);
       }
     } catch (error) {
       setMeetingsError(error.message);
     } finally {
       setLoadingMeetings(false);
+    }
+  };
+
+  const loadSelectedMeeting = async (meetingId) => {
+    if (!meetingId) {
+      setSelectedMeeting(null);
+      setSelectedMeetingError("");
+      return;
+    }
+
+    setLoadingSelectedMeeting(true);
+    setSelectedMeetingError("");
+
+    try {
+      const response = await getMeetingById(meetingId);
+      setSelectedMeeting(response.data || null);
+    } catch (error) {
+      setSelectedMeeting(null);
+      setSelectedMeetingError(error.message);
+    } finally {
+      setLoadingSelectedMeeting(false);
     }
   };
 
@@ -59,22 +81,43 @@ const DashboardPage = () => {
     loadGlobalInsights();
   }, []);
 
+  useEffect(() => {
+    loadSelectedMeeting(selectedMeetingId);
+  }, [selectedMeetingId]);
+
   const handleUploaded = (createdMeetings) => {
     const firstMeetingId = createdMeetings?.[0]?._id || "";
 
     if (firstMeetingId) {
-      setLatestMeetingId(firstMeetingId);
+      setSelectedMeetingId(firstMeetingId);
+      setStatusMessage(`Meeting uploaded and selected: ${createdMeetings[0].title}`);
     }
-
-    setLatestProcessedMeeting(createdMeetings?.[0] || null);
 
     loadMeetings();
     loadGlobalInsights();
   };
 
-  const totals = useMemo(() => {
+  const handleProcessed = (meeting) => {
+    if (meeting?._id) {
+      setSelectedMeetingId(meeting._id);
+      setStatusMessage(`Insights refreshed for ${meeting.title}.`);
+      loadSelectedMeeting(meeting._id);
+      loadMeetings();
+      loadGlobalInsights();
+    }
+  };
+
+  const selectedMeetingSummary = useMemo(() => {
+    if (!selectedMeeting) {
+      return "Select a meeting from the list to work on one meeting at a time.";
+    }
+
+    return selectedMeeting?.insight?.summary || selectedMeeting?.summary || "Meeting selected.";
+  }, [selectedMeeting]);
+
+  const dashboardMetrics = useMemo(() => {
     const totalMeetings = meetings.length;
-    const totalActions = meetings.reduce((sum, meeting) => sum + (meeting.actionItemsCount || 0), 0);
+    const totalActionItems = meetings.reduce((sum, meeting) => sum + (meeting.actionItemsCount || 0), 0);
     const totalDecisions = meetings.reduce((sum, meeting) => sum + (meeting.decisionsCount || 0), 0);
     const averageSentiment = totalMeetings
       ? meetings.reduce((sum, meeting) => sum + (meeting.averageSentiment || 0), 0) / totalMeetings
@@ -82,66 +125,88 @@ const DashboardPage = () => {
 
     return {
       totalMeetings,
-      totalActions,
+      totalActionItems,
       totalDecisions,
-      averageSentiment: averageSentiment.toFixed(2)
+      averageSentiment
     };
   }, [meetings]);
 
   return (
-    <AppShell
-      title="Meeting Analyzer"
-      subtitle="Dashboard Overview"
-      assistantPanel={<ChatSection initialMeetingId={latestMeetingId} title="" description="" compact />}
-    >
-      <div className="mx-auto flex max-w-7xl flex-col gap-8">
-        <UploadSection onUploaded={handleUploaded} />
-
-        {latestProcessedMeeting ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
-            <div className="font-bold">Insights ready</div>
-            <div className="mt-1">
-              {latestProcessedMeeting.title} has been uploaded, processed, and added to chat/search.
-            </div>
+    <AppShell title="Meeting Hub" subtitle="Meeting-first workspace" assistantPanel={null}>
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        {statusMessage ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
+            <div className="font-bold">Workspace updated</div>
+            <div className="mt-1">{statusMessage}</div>
           </div>
         ) : null}
 
-        <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Total Analyzed" value={totals.totalMeetings} hint="Meetings in workspace" />
-          <MetricCard label="Pending Items" value={totals.totalActions} hint="Action items tracked" />
-          <MetricCard label="Decisions Made" value={totals.totalDecisions} hint="Structured decisions extracted" />
-          <MetricCard label="Sentiment Avg" value={totals.averageSentiment} hint="Cross-meeting sentiment score" />
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-[var(--panel-border)] bg-white px-5 py-5 shadow-[var(--panel-shadow)]">
+            <div className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">Meetings</div>
+            <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{dashboardMetrics.totalMeetings}</div>
+            <div className="mt-1 text-sm text-slate-500">Uploaded meeting records in the workspace.</div>
+          </div>
+          <div className="rounded-2xl border border-[var(--panel-border)] bg-white px-5 py-5 shadow-[var(--panel-shadow)]">
+            <div className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">Action Items</div>
+            <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{dashboardMetrics.totalActionItems}</div>
+            <div className="mt-1 text-sm text-slate-500">Tracked follow-ups extracted across meetings.</div>
+          </div>
+          <div className="rounded-2xl border border-[var(--panel-border)] bg-white px-5 py-5 shadow-[var(--panel-shadow)]">
+            <div className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">Decisions</div>
+            <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{dashboardMetrics.totalDecisions}</div>
+            <div className="mt-1 text-sm text-slate-500">Confirmed decisions available for review or export.</div>
+          </div>
+          <div className="rounded-2xl border border-[var(--panel-border)] bg-white px-5 py-5 shadow-[var(--panel-shadow)]">
+            <div className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">Overall Sentiment</div>
+            <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+              {formatSentimentRating(dashboardMetrics.averageSentiment)}
+            </div>
+            <div className="mt-1 text-sm text-slate-500">Weighted view of team tone across uploaded meetings.</div>
+          </div>
         </section>
 
-        <div className="grid gap-8 xl:grid-cols-12">
-          <div className="xl:col-span-7">
-            <GlobalInsightsPanel
-              insights={globalInsights}
-              loading={loadingGlobalInsights}
-              error={globalInsightsError}
-              onRefresh={loadGlobalInsights}
-            />
-          </div>
-
-          <div className="xl:col-span-5">
-            <MeetingsOverview
+        <div className="grid gap-6 xl:grid-cols-[0.78fr,1.22fr]">
+          <div className="space-y-6">
+            <UploadSection onUploaded={handleUploaded} />
+            <MeetingSelectionList
               meetings={meetings}
               loading={loadingMeetings}
               error={meetingsError}
+              selectedMeetingId={selectedMeetingId}
               onRefresh={loadMeetings}
+              onSelect={setSelectedMeetingId}
+            />
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-[var(--panel-border)] bg-white px-6 py-5 shadow-[var(--panel-shadow)]">
+              <div className="text-[0.68rem] font-bold uppercase tracking-[0.18em] text-slate-500">
+                Selected Meeting
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                {selectedMeeting?.title || "No meeting selected"}
+              </div>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                {selectedMeetingSummary}
+              </p>
+            </div>
+
+            <SelectedMeetingWorkspace
+              meeting={selectedMeeting}
+              loading={loadingSelectedMeeting}
+              error={selectedMeetingError}
+              onReprocessed={handleProcessed}
             />
           </div>
         </div>
 
-        <div className="grid gap-8 xl:grid-cols-[1.1fr,0.9fr]">
-          <ProcessSection initialMeetingId={latestMeetingId} />
-          <div className="space-y-8">
-            <MeetingSummaryCard meeting={latestProcessedMeeting} />
-            <div className="xl:hidden">
-              <ChatSection initialMeetingId={latestMeetingId} />
-            </div>
-          </div>
-        </div>
+        <GlobalInsightsPanel
+          insights={globalInsights}
+          loading={loadingGlobalInsights}
+          error={globalInsightsError}
+          onRefresh={loadGlobalInsights}
+        />
       </div>
     </AppShell>
   );

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { processMeeting } from "../lib/api.js";
 import SectionCard from "./SectionCard.jsx";
 
-const ProcessSection = ({ initialMeetingId = "" }) => {
+const ProcessSection = ({ initialMeetingId = "", onProcessed }) => {
   const [meetingId, setMeetingId] = useState(initialMeetingId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,6 +30,7 @@ const ProcessSection = ({ initialMeetingId = "" }) => {
       const response = await processMeeting(meetingId.trim());
       setResult(response.data);
       setStatusMessage("Insights ready.");
+      onProcessed?.(response.data);
     } catch (requestError) {
       setError(requestError.message);
       setStatusMessage("");
@@ -39,12 +40,12 @@ const ProcessSection = ({ initialMeetingId = "" }) => {
   };
 
   return (
-    <SectionCard title="Process Transcript" description="Run extraction, sentiment analysis, and transcript chunk generation for a meeting.">
+    <SectionCard title="Processing Control" description="Re-run extraction for a meeting when you want to refresh insights.">
       <form className="space-y-4" onSubmit={handleSubmit}>
         <label className="block text-sm font-medium text-slate-700">
           Meeting ID
           <input
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-300"
+            className="mt-1 w-full rounded-xl border border-[#d7ddd8] bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-700"
             type="text"
             value={meetingId}
             onChange={(event) => setMeetingId(event.target.value)}
@@ -53,7 +54,7 @@ const ProcessSection = ({ initialMeetingId = "" }) => {
         </label>
 
         <button
-          className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-emerald-900 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
           type="submit"
           disabled={loading}
         >
@@ -61,11 +62,19 @@ const ProcessSection = ({ initialMeetingId = "" }) => {
         </button>
       </form>
 
-      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-      {statusMessage && !error ? <p className="mt-4 text-sm font-medium text-indigo-700">{statusMessage}</p> : null}
+      {error ? (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      ) : null}
+      {statusMessage && !error ? (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          {statusMessage}
+        </div>
+      ) : null}
 
       {result ? (
-        <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+        <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
           <div className="font-bold">Insights ready</div>
           <div className="mt-1">Status: {result.processingStatus}</div>
           <div className="mt-1 text-emerald-800">{result.insight?.summary || "Meeting processed successfully."}</div>

@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5000";
+import { API_BASE_URL } from "./config.js";
 
 const parseResponse = async (response) => {
   const payload = await response.json().catch(() => ({}));
@@ -10,21 +10,33 @@ const parseResponse = async (response) => {
   return payload;
 };
 
+const request = async (url, options) => {
+  try {
+    const response = await fetch(url, options);
+    return await parseResponse(response);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("Unable to reach the API. Check that the server is running and the API URL is correct.");
+    }
+
+    throw error;
+  }
+};
+
 export const getMeetingExportUrl = (meetingId) => `${API_BASE_URL}/api/meetings/${meetingId}/export`;
+export const getMeetingReportUrl = (meetingId) =>
+  `${API_BASE_URL}/api/meetings/${meetingId}/export/report`;
 
 export const getGlobalInsights = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/insights/global`);
-  return parseResponse(response);
+  return request(`${API_BASE_URL}/api/insights/global`);
 };
 
 export const listMeetings = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/meetings`);
-  return parseResponse(response);
+  return request(`${API_BASE_URL}/api/meetings`);
 };
 
 export const getMeetingById = async (meetingId) => {
-  const response = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}`);
-  return parseResponse(response);
+  return request(`${API_BASE_URL}/api/meetings/${meetingId}`);
 };
 
 export const uploadMeetings = async ({ files, titlePrefix }) => {
@@ -38,24 +50,26 @@ export const uploadMeetings = async ({ files, titlePrefix }) => {
     formData.append("titlePrefix", titlePrefix);
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/meetings/upload`, {
+  return request(`${API_BASE_URL}/api/meetings/upload`, {
     method: "POST",
     body: formData
   });
-
-  return parseResponse(response);
 };
 
 export const processMeeting = async (meetingId) => {
-  const response = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/process`, {
+  return request(`${API_BASE_URL}/api/meetings/${meetingId}/process`, {
     method: "POST"
   });
+};
 
-  return parseResponse(response);
+export const deleteMeeting = async (meetingId) => {
+  return request(`${API_BASE_URL}/api/meetings/${meetingId}`, {
+    method: "DELETE"
+  });
 };
 
 export const queryChat = async ({ question, meetingId }) => {
-  const response = await fetch(`${API_BASE_URL}/api/chat/query`, {
+  return request(`${API_BASE_URL}/api/chat/query`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -65,6 +79,4 @@ export const queryChat = async ({ question, meetingId }) => {
       meetingId
     })
   });
-
-  return parseResponse(response);
 };

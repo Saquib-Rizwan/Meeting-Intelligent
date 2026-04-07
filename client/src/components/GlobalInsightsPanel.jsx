@@ -1,9 +1,9 @@
 import SectionCard from "./SectionCard.jsx";
 
 const categoryStyles = {
-  Topics: "border-indigo-500",
+  Topics: "border-emerald-600",
   Concerns: "border-slate-400",
-  Actions: "border-indigo-300"
+  Actions: "border-emerald-300"
 };
 
 const InsightList = ({ title, items }) => {
@@ -44,7 +44,18 @@ const GlobalInsightsPanel = ({ insights, loading, error, onRefresh }) => {
         </button>
       }
     >
-      {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      ) : null}
+
+      {!loading &&
+      !(insights?.recurringTopics?.length || insights?.repeatedConcerns?.length || insights?.commonActions?.length) ? (
+        <div className="mb-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+          Global insights will appear after at least one meeting has been processed successfully.
+        </div>
+      ) : null}
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <InsightList title="Topics" items={insights?.recurringTopics || []} />

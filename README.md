@@ -1,72 +1,119 @@
 # Intelligent Meeting Hub
 
+Intelligent Meeting Hub transforms raw meeting transcripts into structured, searchable outputs for quick decision review, follow-up tracking, sentiment analysis, and evidence-backed Q&A.
+
 ## Problem
-Teams generate large volumes of meeting transcripts, but the useful outputs are usually buried inside raw text. Important decisions, follow-ups, blockers, and sentiment signals are hard to recover quickly during execution, reviews, and demos.
+Meeting transcripts are long, noisy, and hard to operationalize. Teams need a fast way to turn discussion history into decisions, action items, themes, and trustworthy answers without manually rereading every transcript.
 
 ## Solution
-Intelligent Meeting Hub turns raw meeting transcripts into a structured, searchable workspace. Users can upload transcript files, process them into insights, review decisions and action items, inspect sentiment, and ask questions with supporting evidence from the original discussion.
+This project provides an end-to-end meeting intelligence workflow:
+- ingest transcript files
+- extract actionable insights
+- visualize sentiment and participation
+- answer questions with citations
+- surface recurring patterns across meetings
+
+## Screenshots
+Dashboard preview:
+
+![Dashboard Preview](docs/assets/dashboard-preview.svg)
+
+Meeting detail preview:
+
+![Meeting Detail Preview](docs/assets/meeting-detail-preview.svg)
 
 ## Features
-- Upload `.txt` and `.vtt` meeting transcripts
-- Parse speakers, timestamps, and transcript stats
-- Extract summaries, decisions, and action items
-- Build sentiment timeline and speaker sentiment view
-- Chat over one meeting or across meetings with evidence-backed answers
-- Surface recurring topics, concerns, and common actions across meetings
-- Export structured meeting insights as CSV
-- Show a quick meeting summary card for demo-friendly review
+- Upload `.txt` and `.vtt` transcripts
+- Automatic parsing and processing after upload
+- Structured summary, decisions, and action items
+- Sentiment timeline and speaker sentiment view
+- Explainable chat with supporting evidence and confidence score
+- Cross-meeting global insights
+- CSV export for meeting actions and decisions
+- Lightweight test coverage for parser, extraction, and retrieval
 
 ## Tech Stack
 - Frontend: React, Vite, Tailwind CSS, React Router
-- Backend: Node.js, Express
-- Database: MongoDB with Mongoose
-- AI layer: Rule-based extraction plus Hugging Face inference APIs
+- Backend: Node.js, Express, Mongoose
+- Database: MongoDB
+- AI: rule-based extraction plus Hugging Face inference APIs
 
-## Architecture Overview
-1. Upload transcript files from the dashboard
-2. Parse transcript into normalized utterances
-3. Store meeting, transcript, and stats in MongoDB
-4. Run extraction pipeline for summary, decisions, action items, sentiment, and retrieval chunks
-5. Persist insights and expose them through REST APIs
-6. Render dashboard, meeting detail, global insights, and chat UI
+## Architecture
+Architecture diagram:
 
-## Setup Instructions
+![Architecture Overview](docs/assets/architecture-overview.svg)
+
+Simple flow:
+1. Upload transcript
+2. Parse utterances and timestamps
+3. Store meeting and transcript in MongoDB
+4. Extract summary, decisions, action items, sentiment, and chunks
+5. Serve dashboard, meeting detail, global insights, and chat APIs
+6. Retrieve relevant chunks for evidence-backed answers
+
+## Setup
 1. Install dependencies:
 ```bash
 npm install
 ```
-2. Configure backend environment in `server/.env`:
+2. Create `server/.env` using `server/.env.example` and set:
 ```env
 PORT=5000
 MONGODB_URI=mongodb://127.0.0.1:27017/meeting-intelligence-hub
 CACHE_TTL_MS=300000
 HUGGINGFACE_API_KEY=your_key_here
+CLIENT_ORIGIN=http://localhost:5173
 ```
-3. Start backend:
+3. Optionally set the frontend API URL in your client environment:
+```env
+VITE_API_BASE_URL=http://localhost:5000
+```
+4. Start the backend:
 ```bash
-npm run dev:server
+npm start
 ```
-4. Start frontend in a separate terminal:
+5. Start the frontend in a separate terminal:
 ```bash
 npm run dev:client
 ```
-5. Open the Vite client URL shown in the terminal.
 
-## Demo Flow
-1. Upload one or more transcript files from the dashboard
-2. Wait for automatic processing and confirm the “Insights ready” state
+## Build
+Frontend production build:
+```bash
+npm run build:client
+```
+
+Backend production start:
+```bash
+npm start
+```
+
+## Demo Steps
+1. Upload a transcript file from the dashboard
+2. Wait for the “Processing meeting...” and “Insights ready” states
 3. Open the meeting detail page
-4. Show the meeting summary card, decisions, action items, and sentiment timeline
-5. Ask a question in the chat panel and highlight the citations, confidence score, and coverage badges
-6. Return to the dashboard and show global insights across meetings
+4. Show the meeting summary card, extracted decisions, and action items
+5. Show the sentiment timeline and speaker sentiment view
+6. Ask a question in chat and highlight the structured answer, citations, and confidence
+7. Return to the dashboard and show global insights
 
-## Lightweight Tests
+Detailed script:
+- [Demo Script](docs/demo-script.md)
+
+## Sample Queries
+- `Why was the API launch delayed?`
+- `What decisions were made about budget approval?`
+- `Who owns the next follow-up item?`
+- `What concerns are repeating across meetings?`
+- `Summarize the main outcome of this meeting.`
+
+## Testing
 Run the lightweight validation suite:
 ```bash
 npm run test:server
 ```
 
-The test script checks:
+The current tests cover:
 - transcript parsing
 - extraction output generation
 - retrieval relevance

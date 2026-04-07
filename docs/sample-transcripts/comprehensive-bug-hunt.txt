@@ -1,0 +1,60 @@
+[00:00] Maya: Thanks everyone. This is the Q3 platform launch review for Project Atlas.
+[00:12] Ravi: We have four topics today: API launch timing, pricing rollout, mobile crash fixes, and customer migration.
+[00:24] Elena: Before we start, Finance is concerned that the current launch plan could increase support costs by 18 percent in the first month.
+[00:39] Jordan: Support also logged three repeated customer complaints in the pilot: slow dashboard load, confusing billing labels, and broken CSV export on Safari.
+[00:54] Maya: Good. Let's capture the blockers clearly and make sure we leave with actual decisions, not just discussion.
+[01:08] Ravi: First topic, the API launch. QA found a regression in token refresh, and staging failed twice yesterday.
+[01:22] Elena: If we launch the public API this Friday and the bug survives, Finance expects refunds and churn risk from enterprise clients.
+[01:37] Jordan: Customer Success agrees the risk is real. Two design partners already asked whether we are delaying because they saw timeout errors.
+[01:51] Priya: From engineering, I think we can fix the token refresh issue by Monday, but not safely by Friday.
+[02:06] Maya: Does anyone disagree with delaying the public API launch by one week?
+[02:18] Ravi: No disagreement from me.
+[02:24] Elena: Agreed that launching on Friday would be reckless, but I want the exact customer message ready today.
+[02:38] Maya: The final decision is to delay the public API launch by one week and keep the beta limited to internal and pilot customers.
+[02:54] Jordan: That gives Support time to prepare updated macros and a clearer status page notice.
+[03:08] Priya: Action item, Priya will patch the token refresh regression and publish a verification summary by Monday 5 PM.
+[03:24] Jordan: Action item, Jordan will draft the customer communication for pilot accounts by today 6 PM.
+[03:39] Elena: Action item, Elena will review refund exposure assumptions and share the revised risk note by tomorrow noon.
+[03:54] Maya: Second topic, pricing rollout for the analytics add-on.
+[04:06] Elena: I recommend we avoid the annual discount for the first month because margin is already thin.
+[04:21] Ravi: Product originally proposed a 20 percent launch discount for both monthly and annual plans.
+[04:36] Jordan: Sales says a launch discount helps conversion, but they do not need it on annual if onboarding credits remain.
+[04:51] Maya: We discussed three options last night: no discount, monthly-only discount, or both monthly and annual.
+[05:06] Priya: Maybe monthly-only is the least risky path.
+[05:18] Elena: Yes, monthly-only is acceptable. Annual discount would hurt too much.
+[05:31] Maya: The decision is to offer a 10 percent launch discount on monthly plans only, with no annual discount in the first month.
+[05:48] Ravi: Please note that this decision depends on updated pricing copy landing before launch.
+[06:02] Jordan: Action item, Jordan will update the pricing page copy and FAQ by Wednesday 3 PM.
+[06:17] Elena: Action item, Elena will send the approved pricing guardrails to Sales by Wednesday noon.
+[06:33] Maya: Third topic, mobile stability.
+[06:44] Priya: Android crash reports are down, but iOS still has a spike when users export filtered reports.
+[06:58] Ravi: How bad is it?
+[07:04] Priya: About 7 percent of iOS sessions that hit export after changing date filters.
+[07:17] Jordan: That explains the angry messages from the field team yesterday. One customer called the app unusable.
+[07:31] Maya: That sounds serious.
+[07:38] Priya: It is serious, but the root cause is narrow. We can hotfix it by Thursday if QA gets a stable build tomorrow.
+[07:52] Ravi: We should not label mobile stable until the export crash is gone.
+[08:05] Maya: Approved. We will hotfix the iOS filtered-export crash before calling the mobile release stable.
+[08:21] Elena: I support that. A bad mobile experience would undermine the launch story.
+[08:34] Priya: Action item, Priya will hand QA a stable iOS candidate build by tomorrow 11 AM.
+[08:49] Ravi: Action item, Ravi will update the release checklist and mark mobile stability as blocked until QA signs off.
+[09:03] Maya: Fourth topic, customer migration from legacy dashboards.
+[09:15] Jordan: Enterprise admins want a rollback option during the first migration wave.
+[09:28] Ravi: Engineering can support rollback for phase one, but only for the top twenty accounts.
+[09:42] Elena: That is fine financially. We just cannot support unlimited rollback labor.
+[09:56] Maya: So for phase one, are we aligned on offering rollback only to the first twenty enterprise accounts?
+[10:10] Jordan: Yes, that seems manageable.
+[10:17] Priya: Agreed.
+[10:23] Elena: Agreed.
+[10:29] Maya: The final decision was to provide rollback support only for the first twenty enterprise migration accounts in phase one.
+[10:46] Jordan: Action item, Jordan will publish the migration readiness checklist for customer-facing teams by Friday noon.
+[11:01] Ravi: Action item, Ravi will confirm the list of the first twenty migration accounts by Thursday 2 PM.
+[11:17] Maya: Before we close, what were the strongest concerns raised today?
+[11:29] Elena: Refund exposure, support load, and margin erosion from pricing discounts.
+[11:42] Jordan: From customers, the biggest concerns were reliability, confusing billing labels, and rollback safety during migration.
+[11:57] Priya: From engineering, the main risk is shipping before QA validates the token refresh and iOS export fixes.
+[12:12] Maya: Great summary. We are not deciding anything new here, just restating the risks.
+[12:25] Ravi: We also agreed to review onboarding metrics next Tuesday, but that is not a final strategic decision yet.
+[12:39] Maya: Correct. Next Tuesday is a follow-up checkpoint, not a launch decision.
+[12:51] Elena: One more note, if refund exposure exceeds the forecast, we should revisit pricing immediately.
+[13:05] Maya: Thanks everyone. Recap: delay public API launch one week, monthly-only pricing discount, fix iOS export before stable release, and limit rollback support to the first twenty enterprise accounts.
